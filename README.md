@@ -93,7 +93,6 @@ During onboarding:
 ### Step 3 : Configure a Model Provider
 ![Configure  a Model Provider](https://infrasity-pull-zone.b-cdn.net/memclaw/step3.jpeg)
 
-Like here I used Aisa as model Provider
 
 
 
