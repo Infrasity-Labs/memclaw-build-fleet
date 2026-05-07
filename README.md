@@ -38,19 +38,19 @@ All 6 memories written to MemClaw fleet are visible at `memclaw.net/prism`.
 ┌─────────────────────────────────────────────┐
 │           OpenClaw Gateway (local)           │
 │                                              │
-│  master (orchestrator) ← highest priority   │
-│  ├── frontend    (Claude Haiku 4.5 )  │
-│  ├── performance (Claude Haiku 4.5 )  │
-│  ├── seo         (Claude Haiku 4.5 )  │
-│  └── codereview  (Claude Haiku 4.5 )  │
+│  master (orchestrator) ← highest priority    │
+│  ├── frontend    (Claude Haiku 4.5 )         │
+│  ├── performance (Claude Haiku 4.5 )         │
+│  ├── seo         (Claude Haiku 4.5 )         │
+│  └── codereview  (Claude Haiku 4.5 )         │
 │                                              │
 │  All agents share one MemClaw fleet memory   │
 └─────────────────────────────────────────────┘
          ↕ memclaw_write / memclaw_recall
 ┌─────────────────────────────────────────────┐
-│        MemClaw Managed Platform              │
-│        memclaw.net · tenant: sanyog          │
-│        fleet: webpage-fleet                  │
+│        MemClaw Managed Platform             │
+│        memclaw.net · tenant: sanyog         │
+│        fleet: webpage-fleet                 │
 │        6 memories · 4 agents · 0 stale      │
 └─────────────────────────────────────────────┘
 
@@ -244,16 +244,15 @@ Watch the MemClaw dashboard at `memclaw.net/prism` — memory counter goes up li
 ![All skills using shared memory](https://infrasity-pull-zone.b-cdn.net/memclaw/testedcontext.png)
 ### ✅ What Worked
 
-| Component | Status | Notes |
-|---|---|---|
-| OpenClaw install via npm | ✅ | Use `openclaw@latest`, add to PATH |
 
-| MemClaw plugin install | ✅ | Run in Git Bash, patch `hostname -s` → `hostname` |
-| 5-agent fleet config | ✅ | Must overwrite ALL backup files to prevent auto-restore |
-| MemClaw skill per agent | ✅ | `openclaw skills install memclaw --agent <id>` |
-| Real `memclaw_write` tool call | ✅ | Verified with Memory ID in response |
-| MemClaw Prism dashboard | ✅ | 6 memories visible across 4 agents |
-
+| Component | Status | Implementation Notes |
+| :--- | :---: | :--- |
+| **OpenClaw install via npm** | ✅ | Use `openclaw@latest`, add to PATH |
+| **MemClaw plugin install** | ✅ | Run in Git Bash, patch `hostname -s` → `hostname` |
+| **5-agent fleet config** | ✅ | Must overwrite ALL backup files to prevent auto-restore |
+| **MemClaw skill per agent** | ✅ | `openclaw skills install memclaw --agent <id>` |
+| **Real `memclaw_write` tool call** | ✅ | Verified with Memory ID in response |
+| **MemClaw Prism dashboard** | ✅ | 6 memories visible across 4 agents |
 
 ### ⚠️ Issues Encountered and Fixes
 
