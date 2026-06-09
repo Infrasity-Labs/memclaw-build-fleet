@@ -20,7 +20,7 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 
 ## What Is MemClaw?
 
-[MemClaw](https://memclaw.net) is a governed shared memory platform built for AI agent fleets. It's not a vector database bolted onto your pipeline — it's a memory layer designed from the ground up for multi-agent coordination.
+[MemClaw](https://memclaw.net) is a governed shared memory platform built for AI agent fleets. It's not a vector database bolted onto your pipeline, it's a memory layer designed from the ground up for multi-agent coordination.
 
 > **New to MCP?** MCP (Model Context Protocol) is an open standard that lets LLMs call external tools via a consistent interface. MemClaw exposes its memory operations as MCP tools, so any MCP-compatible agent or IDE (Claude Code, Cursor, OpenClaw) can read and write fleet memory without custom integration code. [Learn more at modelcontextprotocol.io](https://modelcontextprotocol.io)
 
@@ -57,9 +57,9 @@ Get your free API key at [memclaw.net](https://memclaw.net). Prism dashboard is 
 
 ## What Is OpenClaw?
 
-[OpenClaw](https://docs.openclaw.ai) is a multi-agent runtime for running and chatting with AI agents from a terminal or web UI. Agents in OpenClaw connect to MCP servers — including MemClaw — for persistent fleet memory.
+[OpenClaw](https://docs.openclaw.ai) is a multi-agent runtime for running and chatting with AI agents from a terminal or web UI. Agents in OpenClaw connect to MCP servers including MemClaw for persistent fleet memory.
 
-**This repo is the plain-Python equivalent of that pattern.** You don't need OpenClaw to run it. If you want to hook the same MemClaw tenant into an OpenClaw session after running the pipeline, register the MCP server in Claude Code and query your fleet memories interactively — see [Querying Fleet Memories](#querying-fleet-memories).
+**This repo is the plain-Python equivalent of that pattern.** You don't need OpenClaw to run it. If you want to hook the same MemClaw tenant into an OpenClaw session after running the pipeline, register the MCP server in Claude Code and query your fleet memories interactively, see [Querying Fleet Memories](#querying-fleet-memories).
 
 ## Why Multi-Agent?
 
@@ -67,7 +67,7 @@ Single agents hit a wall when complexity grows. They lose context, contradict th
 
 **Multi-agent pipelines solve this by dividing work across specialists.** But they introduce a new problem: agents that can't see each other's decisions make contradictory choices. Agent A bans external JavaScript. Agent B loads a schema library from a CDN. Nobody catches it.
 
-**MemClaw fixes this with shared fleet memory.** Every agent writes its decisions before finishing. Every downstream agent recalls those decisions before acting. Constraints propagate automatically — not because the code hard-wires them, but because agents read each other's memory.
+**MemClaw fixes this with shared fleet memory.** Every agent writes its decisions before finishing. Every downstream agent recalls those decisions before acting. Constraints propagate automatically not because the code hard-wires them, but because agents read each other's memory.
 
 This repo demonstrates that pattern end-to-end:
 
@@ -75,8 +75,8 @@ This repo demonstrates that pattern end-to-end:
 | ---------------------- | ------------------------------------------------------------------------------------------------ |
 | Constraint propagation | Performance writes "zero external JS" → SEO recalls it → chooses inline JSON-LD                  |
 | Cross-agent citation   | Code Review cites Performance + SEO memory IDs in its LGTM verdict                               |
-| Data isolation         | Manager agent has no `write` access — confirms zero writes every run                             |
-| Hybrid recall          | Vector + keyword + knowledge graph — agents find relevant memories even with paraphrased queries |
+| Data isolation         | Manager agent has no `write` access confirms zero writes every run                             |
+| Hybrid recall          | Vector + keyword + knowledge graph agents find relevant memories even with paraphrased queries |
 
 ---
 
@@ -100,17 +100,17 @@ This repo demonstrates that pattern end-to-end:
 
 ## MCP Tool Access Per Agent
 
-Each agent is given an explicit allowlist of MCP tools. Agents cannot call tools outside their allowlist — this enforces the principle of least privilege and makes the data flow auditable.
+Each agent is given an explicit allowlist of MCP tools. Agents cannot call tools outside their allowlist this enforces the principle of least privilege and makes the data flow auditable.
 
 | Agent           | Role                                                                                             | `write` | `recall` | `insights` | `list` | `stats` | `keystones` | `entity_get` |
 | :-------------- | :----------------------------------------------------------------------------------------------- | :-----: | :------: | :--------: | :----: | :-----: | :---------: | :----------: |
-| **Frontend**    | First in chain — nothing to recall yet. Architects the page and writes all structural decisions. |    ✓    |    —     |     —      |   —    |    —    |      —      |      —       |
+| **Frontend**    | First in chain nothing to recall yet. Architects the page and writes all structural decisions. |    ✓    |    —     |     —      |   —    |    —    |      —      |      —       |
 | **Performance** | Recalls frontend decisions, audits Core Web Vitals, writes bundle and image rules.               |    ✓    |    ✓     |     —      |   —    |    —    |      —      |      —       |
 | **SEO**         | Recalls all fleet memories so schema choices respect Performance's bundle constraints.           |    ✓    |    ✓     |     —      |   —    |    —    |      —      |      —       |
 | **Code Review** | Recalls full fleet, runs contradiction detection, issues LGTM/BLOCK with cited memory IDs.       |    ✓    |    ✓     |     ✓      |   —    |    —    |      —      |      —       |
-| **Manager**     | Read-only audit across the configured fleet. Proves data isolation — no writes allowed.          |    —    |    ✓     |     ✓      |   ✓    |    ✓    |      ✓      |      ✓       |
+| **Manager**     | Read-only audit across the configured fleet. Proves data isolation no writes allowed.          |    —    |    ✓     |     ✓      |   ✓    |    ✓    |      ✓      |      ✓       |
 
-> **Why restrict tools?** Giving every agent every tool is a common mistake. The Manager agent's inability to call `memclaw_write` is enforced at the tool-schema level — it simply never receives that tool definition. At the end of every run it reports zero write operations, which is the read-only isolation proof.
+> **Why restrict tools?** Giving every agent every tool is a common mistake. The Manager agent's inability to call `memclaw_write` is enforced at the tool-schema level it simply never receives that tool definition. At the end of every run it reports zero write operations, which is the read-only isolation proof.
 
 ---
 
@@ -161,7 +161,7 @@ MemClaw-fleet/
 ### Prerequisites
 
 - Python 3.11 or later
-- A free [MemClaw account](https://memclaw.net) — sign up and get your `MEMCLAW_API_KEY` and `MEMCLAW_TENANT_ID` from the [Prism dashboard](https://memclaw.net/prism). The tenant ID is shown on your dashboard home page immediately after sign-up.
+- A free [MemClaw account](https://memclaw.net) sign up and get your `MEMCLAW_API_KEY` and `MEMCLAW_TENANT_ID` from the [Prism dashboard](https://memclaw.net/prism). The tenant ID is shown on your dashboard home page immediately after sign-up.
 - An LLM that supports OpenAI-compatible function calling. Two options are covered below.
 
 ---
@@ -170,7 +170,7 @@ MemClaw-fleet/
 
 Any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint with function calling support will work.
 
-> **Model requirement:** The model must support `tool_choice` / function calling. If you see zero tool calls in the output, the model does not support it — switch models.
+> **Model requirement:** The model must support `tool_choice` / function calling. If you see zero tool calls in the output, the model does not support it switch models.
 
 #### 1. Clone and install
 
@@ -354,7 +354,7 @@ Execution plan:
 
 ## Creating a New Fleet
 
-A "fleet" is a named namespace (`fleet_id`) that scopes all memories written by a group of agents. You don't need to register it anywhere â€” set the name in `.env` and memories are automatically isolated to that namespace.
+A "fleet" is a named namespace (`fleet_id`) that scopes all memories written by a group of agents. You don't need to register it anywhere set the name in `.env` and memories are automatically isolated to that namespace.
 
 ### 1. Pick a fleet name
 
@@ -426,7 +426,7 @@ Open a new Claude Code session and ask it to recall memories from your fleet. Cl
 
 ### MCP Inspector
 
-The official MCP debugging tool — browser UI, no code required.
+The official MCP debugging tool browser UI, no code required.
 
 ```bash
 npx @modelcontextprotocol/inspector
@@ -471,11 +471,11 @@ Invoke-RestMethod -Method POST -Uri "https://memclaw.net/api/v1/recall" -Headers
 | Symptom                                         | Cause                                                       | Fix                                                                                                                       |
 | ----------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Zero tool calls in output                       | Model doesn't support function calling                      | Switch to `llama3.1` or `qwen2.5` (Ollama), or check your provider's capability docs                                      |
-| Code Review BLOCK — "No relevant context found" | Earlier agents didn't run, or `MEMCLAW_FLEET_ID` mismatches | Run full pipeline from Agent 1; confirm `MEMCLAW_FLEET_ID` is identical everywhere                                        |
+| Code Review BLOCK: "No relevant context found" | Earlier agents didn't run, or `MEMCLAW_FLEET_ID` mismatches | Run full pipeline from Agent 1; confirm `MEMCLAW_FLEET_ID` is identical everywhere                                        |
 | `ModuleNotFoundError` on a single agent         | Running from inside `pipeline/`                             | Run from repo root: `python pipeline/agent_codereview.py`                                                                 |
 | MemClaw 401 Unauthorized                        | Missing or malformed API key                                | Keys follow format `mc_xxxxx`. Get yours at [memclaw.net/prism](https://memclaw.net/prism)                                |
 | LLM gateway 429 rate limit                      | Provider quota exceeded                                     | Pipeline retries automatically (4 attempts, 20–80s backoff). Set `LLM_GATEWAY_MAX_TOKENS=2048` to reduce per-request size |
-| Inline comment breaks `.env` value              | Shell comments inside env values                            | `LLM_GATEWAY_MODEL=my-model` — no trailing `# comments` on the same line                                                  |
+| Inline comment breaks `.env` value              | Shell comments inside env values                            | `LLM_GATEWAY_MODEL=my-model`: no trailing `# comments` on the same line                                                  |
 | Recall returns memories from a different run    | `MEMCLAW_FLEET_ID` typo (e.g. `piepline` vs `pipeline`)    | Recall queries by tenant first; a typo'd `fleet_id` still returns results but mixes namespaces. Standardise on one value in `.env` and keep it consistent across all runs |
 
 ---
@@ -531,6 +531,6 @@ python pipeline/run_pipeline.py --dry-run
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT LICENSE](LICENSE).
 
 MemClaw platform is separately licensed. See [memclaw.net](https://memclaw.net) for terms.
