@@ -32,6 +32,7 @@ _mcp_request_id = 0
 _mcp_session_id: str | None = None
 _mcp_initialized = False
 _mcp_tools_cache: list[dict] | None = None
+_mcp_transport_at_cache: str | None = None  # transport value when cache was last populated
 
 
 def _cfg(key: str, default: str = "") -> str:
@@ -166,6 +167,14 @@ def _mcp_json_rpc(method: str, params: dict | None = None, *, expect_response: b
     raise RequestException(f"MemClaw MCP {method} exhausted retries")
 
 
+def _mcp_reset_session() -> None:
+    global _mcp_initialized, _mcp_session_id, _mcp_tools_cache, _mcp_transport_at_cache
+    _mcp_initialized = False
+    _mcp_session_id = None
+    _mcp_tools_cache = None
+    _mcp_transport_at_cache = None
+
+
 def _mcp_initialize() -> None:
     global _mcp_initialized
     if _mcp_initialized:
@@ -201,14 +210,19 @@ def _normalise_tool_schema(tool: dict) -> dict:
 
 
 def _mcp_list_tools() -> list[dict]:
-    global _mcp_tools_cache
-    if _mcp_tools_cache is not None:
+    global _mcp_tools_cache, _mcp_transport_at_cache
+    current_transport = _transport()
+    if _mcp_tools_cache is not None and _mcp_transport_at_cache == current_transport:
         return _mcp_tools_cache
+    if _mcp_transport_at_cache is not None and _mcp_transport_at_cache != current_transport:
+        # Transport changed since the cache was built — reset all MCP session state.
+        _mcp_reset_session()
 
     _mcp_initialize()
     result = _mcp_json_rpc("tools/list")
     raw_tools = result.get("tools", result if isinstance(result, list) else [])
     _mcp_tools_cache = [_normalise_tool_schema(t) for t in raw_tools]
+    _mcp_transport_at_cache = current_transport
     return _mcp_tools_cache
 
 
@@ -321,6 +335,18 @@ def _get(path: str, params: dict | None = None) -> dict:
     return _request_with_retry("GET", path, params={**_base(), **(params or {})})
 
 
+# Keys injected by _base()/_post()/_get() that must never be forwarded as extra
+# user-supplied filter params — stripping them prevents double-keying and leaking
+# internal routing fields to endpoints that don't expect them.
+_INTERNAL_KEYS = frozenset({"fleet_id", "fleet_ids", "tenant_id"})
+
+
+def _filter_params(args: dict) -> dict:
+    """Return args with internal routing keys removed. Uses 'is not None' so that
+    legitimate zero/False/empty-string filter values are preserved."""
+    return {k: v for k, v in args.items() if v is not None and k not in _INTERNAL_KEYS}
+
+
 # ── Tool implementations ──────────────────────────────────────────────────────
 
 def call_tool(tool_name: str, arguments: dict, agent_id: str | None = None) -> Any:
@@ -342,15 +368,16 @@ def call_tool(tool_name: str, arguments: dict, agent_id: str | None = None) -> A
         return _mcp_call_tool(tool_name, args)
 
     dispatch = {
-        "memclaw_write":     _write,
-        "memclaw_recall":    _recall,
-        "memclaw_list":      _list,
-        "memclaw_insights":  _insights,
-        "memclaw_stats":     _stats,
-        "memclaw_manage":    _manage,
-        "memclaw_keystones": _keystones,
-        "memclaw_tune":      _tune,
-        "memclaw_evolve":    _evolve,
+        "memclaw_write":      _write,
+        "memclaw_recall":     _recall,
+        "memclaw_list":       _list,
+        "memclaw_insights":   _insights,
+        "memclaw_stats":      _stats,
+        "memclaw_manage":     _manage,
+        "memclaw_keystones":  _keystones,
+        "memclaw_entity_get": _entity_get,
+        "memclaw_tune":       _tune,
+        "memclaw_evolve":     _evolve,
     }
     fn = dispatch.get(tool_name)
     if not fn:
@@ -422,16 +449,20 @@ def _recall(args: dict) -> dict:
     except (TypeError, ValueError):
         top_k = 10
     top_k = max(1, min(top_k, MAX_RECALL_TOP_K))
+    # fleet_ids is an array; caller may supply it directly, otherwise derive from env.
+    fleet_ids = args.get("fleet_ids") or [_cfg("MEMCLAW_FLEET_ID", "fleet")]
+    if isinstance(fleet_ids, str):
+        fleet_ids = [fleet_ids]
     return _post("recall", {
-        "agent_id": args.get("agent_id", ""),
-        "query":    args.get("query", ""),
-        "top_k":    top_k,
+        "agent_id":  args.get("agent_id", ""),
+        "query":     args.get("query", ""),
+        "top_k":     top_k,
+        "fleet_ids": fleet_ids,
     })
 
 
 def _list(args: dict) -> dict:
-    params = {k: v for k, v in args.items() if v and k not in ("fleet_id", "tenant_id")}
-    return _get("memories", params)
+    return _get("memories", _filter_params(args))
 
 
 def _stats(args: dict) -> dict:
@@ -517,6 +548,24 @@ def _keystones(args: dict) -> dict:
         return {"keystones": []}
 
 
+def _entity_get(args: dict) -> dict:
+    entity_id = args.get("entity_id", "")
+    # Extra filters (name, type) are forwarded as query params in both branches so
+    # the server can apply them even on a by-ID lookup.
+    extra = _filter_params({k: v for k, v in args.items() if k != "entity_id"})
+    if entity_id:
+        return _get(f"entities/{entity_id}", extra or None)
+    return _get("entities", extra or None)
+
+
+def _doc(args: dict) -> dict:
+    doc_id = args.get("doc_id", "")
+    extra = _filter_params({k: v for k, v in args.items() if k != "doc_id"})
+    if doc_id:
+        return _get(f"docs/{doc_id}", extra or None)
+    return _get("docs", extra or None)
+
+
 def _tune(args: dict) -> dict:
     return {"status": "ok", "note": "tune not available in this API version"}
 
@@ -562,8 +611,9 @@ def list_tools(agent_id: str | None = None) -> list[dict]:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "query":  {"type": "string", "description": "What to search for"},
-                    "top_k":  {"type": "integer", "description": "Max results (default 10, maximum 20)", "minimum": 1, "maximum": MAX_RECALL_TOP_K},
+                    "query":     {"type": "string", "description": "What to search for"},
+                    "top_k":     {"type": "integer", "description": "Max results (default 10, maximum 20)", "minimum": 1, "maximum": MAX_RECALL_TOP_K},
+                    "fleet_ids": {"type": "array", "items": {"type": "string"}, "description": "Fleet namespaces to search (defaults to MEMCLAW_FLEET_ID)"},
                 },
                 "required": ["query"],
             },
@@ -614,6 +664,19 @@ def list_tools(agent_id: str | None = None) -> list[dict]:
                     "memory_id": {"type": "string"},
                 },
                 "required": ["op", "memory_id"],
+            },
+        },
+        {
+            "name": "memclaw_entity_get",
+            "description": "Query the knowledge graph for extracted entities and their relationships.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "entity_id": {"type": "string", "description": "Specific entity ID to fetch (optional)"},
+                    "name":      {"type": "string", "description": "Filter by entity name"},
+                    "type":      {"type": "string", "description": "Filter by entity type (person, org, concept)"},
+                },
+                "required": [],
             },
         },
     ]

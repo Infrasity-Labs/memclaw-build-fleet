@@ -10,7 +10,7 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![License MIT](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 [![MemClaw](https://img.shields.io/badge/MemClaw-v0.9.31-orange?style=flat-square)](https://memclaw.net)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/sanyog2005/MemClaw-fleet/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/caura-ai/caura-memclaw/pulls)
 
 [Why Multi-Agent?](#why-multi-agent) · [MemClaw Features](#what-is-memclaw) · [Quickstart](#getting-started) · [New Fleet](#creating-a-new-fleet) · [Query Memories](#querying-fleet-memories) · [Add an Agent](#adding-a-new-agent)
 
@@ -31,11 +31,11 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 | **Hybrid recall**           | Vector similarity + keyword match + knowledge graph traversal in one call. Agents find relevant memories even when they paraphrase the original query |
 | **Fleet namespacing**       | Every memory is scoped to a `fleet_id`. Multiple fleets share one tenant without bleeding into each other                                             |
 | **Row-level security**      | `scope_agent` flag makes a memory readable only by the writing agent. Per-row ACL enforced at the storage layer                                       |
-| **Contradiction detection** | `memclaw_insights` scans the fleet for conflicting rules before they cause downstream failures                                                        |
-| **Audit trail**             | Every write, recall, and delete is logged and queryable via the Prism dashboard                                                                       |
-| **PII detection**           | Automatic flagging of sensitive content before it enters the memory store                                                                             |
+| **Contradiction detection** | `memclaw_insights` scans the fleet for conflicting rules across stored memories and surfaces them post-commit for agent review                        |
+| **Audit trail**             | Every write, recall, and delete is logged and queryable via the Prism dashboard (log storage and querying is Prism-managed)                           |
+| **PII detection**           | Sensitive content is auto-detected and stamped with a PII flag on the stored memory; use `scope_agent=true` to restrict access to the writing agent  |
 | **Prism dashboard**         | Live view of all fleet memories, memory types, and agent activity at [memclaw.net/prism](https://memclaw.net/prism)                                   |
-| **Knowledge graph**         | Entities and relationships extracted from memories, queryable as a graph via `memclaw_entity_get` and `memclaw_keystones`                             |
+| **Knowledge graph**         | Entities and relationships extracted from memories, queryable as a graph via `memclaw_entity_get`                                                     |
 
 ### MCP Tools Used in This Pipeline
 
@@ -49,7 +49,7 @@ This repo connects to the MemClaw MCP server over Streamable HTTP. `pipeline/mcp
 | `memclaw_list`       | `tools/call` | List memories filtered by agent, type, or cursor       |
 | `memclaw_stats`      | `tools/call` | Aggregate counts by memory type, agent, and status     |
 | `memclaw_entity_get` | `tools/call` | Query the knowledge graph for extracted entities       |
-| `memclaw_keystones`  | `tools/call` | Read mandatory governance rules for the fleet          |
+| `memclaw_keystones`  | `tools/call` | Read mandatory governance rules (policy, not knowledge graph) |
 
 Get your free API key at [memclaw.net](https://memclaw.net). Prism dashboard is at [memclaw.net/prism](https://memclaw.net/prism).
 
@@ -175,8 +175,8 @@ Any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint w
 #### 1. Clone and install
 
 ```bash
-git clone https://github.com/sanyog2005/MemClaw-fleet.git
-cd MemClaw-fleet
+git clone https://github.com/caura-ai/caura-memclaw.git
+cd caura-memclaw
 
 python -m venv .venv
 
@@ -239,8 +239,8 @@ Other supported models: `mistral-nemo`, `qwen2.5`, `nous-hermes2`. Verify functi
 #### 3. Clone and install
 
 ```bash
-git clone https://github.com/sanyog2005/MemClaw-fleet.git
-cd MemClaw-fleet
+git clone https://github.com/caura-ai/caura-memclaw.git
+cd caura-memclaw
 
 python -m venv .venv
 
@@ -442,7 +442,7 @@ curl -s -X POST https://memclaw.net/api/v1/recall \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_id": "your-tenant-id",
-    "fleet_id": "memclaw-build-fleet",
+    "fleet_ids": ["memclaw-build-fleet"],
     "query": "SEO schema decisions",
     "top_k": 5
   }' | python -m json.tool
@@ -456,7 +456,7 @@ PowerShell:
 $headers = @{ "X-API-Key" = "mc_your_key_here"; "Content-Type" = "application/json" }
 $body = @{
     tenant_id = "your-tenant-id"
-    fleet_id  = "memclaw-build-fleet"
+    fleet_ids = @("memclaw-build-fleet")
     query     = "SEO schema decisions"
     top_k     = 5
 } | ConvertTo-Json
@@ -492,8 +492,8 @@ Contributions welcome. Useful directions:
 ### Development setup
 
 ```bash
-git clone https://github.com/caura-memclaw/memclaw-fleet.git
-cd memClaw-fleet
+git clone https://github.com/caura-ai/caura-memclaw.git
+cd caura-memclaw
 python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
 pip install -r pipeline/requirements.txt
 ```
