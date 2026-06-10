@@ -9,7 +9,7 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![License MIT](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
-[![MemClaw](https://img.shields.io/badge/MemClaw-v0.9.31-orange?style=flat-square)](https://memclaw.net)
+[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/caura-ai/caura-memclaw/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/caura-ai/caura-memclaw/pulls)
 
 [Why Multi-Agent?](#why-multi-agent) · [MemClaw Features](#what-is-memclaw) · [Quickstart](#getting-started) · [New Fleet](#creating-a-new-fleet) · [Query Memories](#querying-fleet-memories) · [Add an Agent](#adding-a-new-agent)
