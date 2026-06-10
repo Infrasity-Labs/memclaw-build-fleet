@@ -32,7 +32,7 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 | **Fleet namespacing**       | Every memory is scoped to a `fleet_id`. Multiple fleets share one tenant without bleeding into each other                                             |
 | **Row-level security**      | `scope_agent` flag makes a memory readable only by the writing agent. Per-row ACL enforced at the storage layer                                       |
 | **Contradiction detection** | `memclaw_insights` scans the fleet for conflicting rules across stored memories and surfaces them post-commit for agent review                        |
-| **Audit trail**             | Every write, recall, and delete is logged and queryable via the Prism dashboard (log storage and querying is Prism-managed)                           |
+| **Audit trail**             | Writes and deletes are audit-logged on OSS; per-recall logging and dashboard querying are Prism-managed features.                                     |
 | **PII detection**           | Sensitive content is auto-detected and stamped with a PII flag on the stored memory; use `scope_agent=true` to restrict access to the writing agent  |
 | **Prism dashboard**         | Live view of all fleet memories, memory types, and agent activity at [memclaw.net/prism](https://memclaw.net/prism)                                   |
 | **Knowledge graph**         | Entities and relationships extracted from memories, queryable as a graph via `memclaw_entity_get`                                                     |
