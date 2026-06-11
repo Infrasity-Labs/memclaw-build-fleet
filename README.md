@@ -309,6 +309,52 @@ python pipeline/manager.py
 
 ## Expected Output
 
+### `--dry-run`
+
+Use `--dry-run` to verify your environment and MemClaw connectivity before running the full pipeline. It checks that all required env vars are set, opens an MCP session, calls `tools/list`, and exits — no LLM calls, no memories written.
+
+```
+python pipeline/run_pipeline.py --dry-run
+```
+
+![dry-run output](docs/images/output-dry-run.jfif)
+
+```
+=================================================================
+  MemClaw 5-Fleet SaaS Build Pipeline  (MCP tool-use)
+  Recall Before Acting · Write After Deciding
+  Started : 2026-06-06 10:58:10
+=================================================================
+  MCP URL : https://memclaw.net/mcp
+  Transport: mcp
+  Fleet   : memclaw-build-fleet
+  Tenant  : **********fa9c
+  Model   : your-model-name
+=================================================================
+
+10:58:10 INFO  __main__ — Checking MemClaw API connectivity...
+10:58:11 INFO  __main__ — MemClaw API reachable — 12 tools defined: ['memclaw_write', 'memclaw_recall', ...]
+10:58:11 INFO  __main__ — Dry run complete — env OK, MemClaw OK.
+
+Execution plan:
+  #   Agent                  MCP Tool Usage
+  --- ---------------------- --------------------------------------
+  1   Frontend Agent         recall:—  write:HTML5/CSS decisions
+  2   Performance Agent      recall:frontend → write:CWV rules
+  3   SEO Agent              recall:all → write:SEO decisions
+  4   Code Review Agent      recall:all + insights → write:verdict
+  5   Manager Tenant         list+stats+insights  (read-only audit)
+```
+
+If any required env var is missing, the run exits immediately with a clear error before touching the network:
+
+```
+ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, MEMCLAW_API_KEY
+Copy .env.example → .env and fill in your keys.
+```
+
+### Full pipeline run
+
 ```
 =================================================================
   MemClaw 5-Fleet SaaS Build Pipeline  (MCP tool-use)
@@ -349,6 +395,23 @@ Execution plan:
   View memories at: https://memclaw.net/prism
 =================================================================
 ```
+
+### Viewing memories in Prism
+
+![Prism output](docs/images/memclaw-prism-output.png)
+
+After any full pipeline run, every memory written by the fleet is visible in the [Prism dashboard](https://memclaw.net/prism). The summary line at the end of the run prints the direct URL:
+
+```
+View memories at: https://memclaw.net/prism
+```
+
+In Prism you can:
+
+- Browse all memories by fleet, agent, or memory type (`decision`, `rule`, `fact`, `insight`)
+- Inspect individual memory content, importance score, tags, and write timestamp
+- Filter by agent ID to see exactly what each pipeline agent contributed
+- Check the audit log for every write and recall operation across the run
 
 ---
 

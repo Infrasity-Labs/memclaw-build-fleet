@@ -236,18 +236,19 @@ def _tool_message_content(tool_name: str, result: Any, max_len: int = 4000) -> s
 
     if tool_name in {"memclaw_recall", "memclaw_list"}:
         compact = {k: result.get(k) for k in ("query", "summary", "focus", "memory_count", "total", "total_memories", "next_cursor") if k in result}
-        if "items" in result and isinstance(result["items"], list):
-            compact["items"] = []
-            for item in result["items"][:5]:
+        raw_list = result.get("results") or result.get("items") or []
+        if isinstance(raw_list, list):
+            compact["results"] = []
+            for item in raw_list[:5]:
                 if not isinstance(item, dict):
-                    compact["items"].append(item)
+                    compact["results"].append(item)
                     continue
-                compact["items"].append({
+                compact["results"].append({
                     "id": item.get("id"),
                     "agent_id": item.get("agent_id"),
                     "memory_type": item.get("memory_type") or item.get("type"),
                     "title": item.get("title"),
-                    "content": _truncate_text(item.get("content", ""), 180),
+                    "content": _truncate_text(item.get("content", ""), 400),
                 })
 
     elif tool_name == "memclaw_insights":
