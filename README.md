@@ -9,8 +9,8 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![License MIT](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
-[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/caura-ai/caura-memclaw/releases)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/caura-ai/caura-memclaw/pulls)
+[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/caura-ai/memclaw-build-fleet/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/caura-ai/memclaw-build-fleet/pulls)
 
 [Why Multi-Agent?](#why-multi-agent) · [MemClaw Features](#what-is-memclaw) · [Quickstart](#getting-started) · [New Fleet](#creating-a-new-fleet) · [Query Memories](#querying-fleet-memories) · [Add an Agent](#adding-a-new-agent)
 
@@ -55,11 +55,6 @@ Get your free API key at [memclaw.net](https://memclaw.net). Prism dashboard is 
 
 ---
 
-## What Is OpenClaw?
-
-[OpenClaw](https://docs.openclaw.ai) is a multi-agent runtime for running and chatting with AI agents from a terminal or web UI. Agents in OpenClaw connect to MCP servers including MemClaw for persistent fleet memory.
-
-**This repo is the plain-Python equivalent of that pattern.** You don't need OpenClaw to run it. If you want to hook the same MemClaw tenant into an OpenClaw session after running the pipeline, register the MCP server in Claude Code and query your fleet memories interactively, see [Querying Fleet Memories](#querying-fleet-memories).
 
 ## Why Multi-Agent?
 
@@ -112,6 +107,8 @@ Each agent is given an explicit allowlist of MCP tools. Agents cannot call tools
 
 > **Why restrict tools?** Giving every agent every tool is a common mistake. The Manager agent's inability to call `memclaw_write` is enforced at the tool-schema level it simply never receives that tool definition. At the end of every run it reports zero write operations, which is the read-only isolation proof.
 
+> **`memclaw_insights` scope note:** At default trust level, `memclaw_insights` operates on the calling agent's own memories (`scope="agent"`). Cross-agent contradiction detection in the pipeline works because the Code Review Agent first recalls all fleet memories and the model reasons over them directly. The `insights` call adds automated pattern/staleness analysis on top of that. For full cross-agent `insights` (all memories in scope), elevated trust is required — available on managed MemClaw accounts.
+
 ---
 
 ## Memory Isolation Layers
@@ -135,7 +132,7 @@ MemClaw provides three levels of isolation that can be combined. This pipeline u
 ## Repository Structure
 
 ```text
-MemClaw-fleet/
+memclaw-build-fleet/
 ├── pipeline/
 │   ├── run_pipeline.py       # ← START HERE: orchestrator and entry point
 │   ├── agent_base.py         # Shared agentic loop used by all 5 agents
@@ -175,8 +172,8 @@ Any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint w
 #### 1. Clone and install
 
 ```bash
-git clone https://github.com/caura-ai/caura-memclaw.git
-cd caura-memclaw
+git clone https://github.com/caura-ai/memclaw-build-fleet.git
+cd memclaw-build-fleet
 
 python -m venv .venv
 
@@ -239,8 +236,8 @@ Other supported models: `mistral-nemo`, `qwen2.5`, `nous-hermes2`. Verify functi
 #### 3. Clone and install
 
 ```bash
-git clone https://github.com/caura-ai/caura-memclaw.git
-cd caura-memclaw
+git clone https://github.com/caura-ai/memclaw-build-fleet.git
+cd memclaw-build-fleet
 
 python -m venv .venv
 
@@ -349,7 +346,7 @@ Execution plan:
 If any required env var is missing, the run exits immediately with a clear error before touching the network:
 
 ```
-ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, MEMCLAW_API_KEY
+ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID
 Copy .env.example → .env and fill in your keys.
 ```
 
@@ -388,13 +385,15 @@ Execution plan:
   ✓ Code Review Agent       34.0s  [memclaw_recall×3  memclaw_insights×1  memclaw_write×1]
   ✓ Manager Tenant          12.8s  [memclaw_stats×1  memclaw_list×1  memclaw_insights×2]
 
-  Code Review Verdict : ✅ LGTM
-  Pipeline Health     : ✅ HEALTHY
+  Code Review Verdict : <LGTM or BLOCK — depends on model and whether contradictions are detected>
+  Pipeline Health     : <HEALTHY, WARNINGS, or CRITICAL — depends on model>
   Data Isolation      : ✅ VERIFIED
 
   View memories at: https://memclaw.net/prism
 =================================================================
 ```
+
+> **Note on verdict reproducibility:** `Code Review Verdict` and `Pipeline Health` are emitted by the LLM and are model-dependent. Different models (or the same model on different runs) may produce `LGTM` or `BLOCK` depending on how they interpret the recalled memories and any detected contradictions. A `BLOCK` verdict is not a pipeline failure — it means the model found a real or apparent inconsistency (e.g. SEO inline JSON-LD read as conflicting with the Performance "no external JS" rule). Review the agent's `final_text` for its cited reasoning.
 
 ### Viewing memories in Prism
 
@@ -540,6 +539,8 @@ Invoke-RestMethod -Method POST -Uri "https://memclaw.net/api/v1/recall" -Headers
 | LLM gateway 429 rate limit                      | Provider quota exceeded                                     | Pipeline retries automatically (4 attempts, 20–80s backoff). Set `LLM_GATEWAY_MAX_TOKENS=2048` to reduce per-request size |
 | Inline comment breaks `.env` value              | Shell comments inside env values                            | `LLM_GATEWAY_MODEL=my-model`: no trailing `# comments` on the same line                                                  |
 | Recall returns memories from a different run    | `MEMCLAW_FLEET_ID` typo (e.g. `piepline` vs `pipeline`)    | Recall queries by tenant first; a typo'd `fleet_id` still returns results but mixes namespaces. Standardise on one value in `.env` and keep it consistent across all runs |
+| Manager reads return 403 / `Data Isolation: ⚠️ UNCONFIRMED` | Manager agent was never registered (trust < 2) | The orchestrator writes one bootstrap memory as the Manager agent before the pipeline starts. If you run `manager.py` standalone, call `run_pipeline.py` first, or add a `memclaw_write` call in your own bootstrap step to register the agent. |
+| `memclaw_insights` returns 403 for Code Review  | Agent called `insights` before writing any memory (unregistered) | The Code Review agent now writes a draft note before calling `memclaw_insights`. If you see this in isolation, ensure the agent has written at least one memory before calling insights. |
 
 ---
 
@@ -555,8 +556,8 @@ Contributions welcome. Useful directions:
 ### Development setup
 
 ```bash
-git clone https://github.com/caura-ai/caura-memclaw.git
-cd caura-memclaw
+git clone https://github.com/caura-ai/memclaw-build-fleet.git
+cd memclaw-build-fleet
 python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
 pip install -r pipeline/requirements.txt
 ```

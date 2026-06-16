@@ -1,19 +1,21 @@
 """
 Base agentic loop shared by all fleet agents.
 
-LLM backend: Groq via its OpenAI-compatible endpoint.
-    Base URL : https://api.groq.com/openai/v1/
+LLM backend: any OpenAI-compatible provider (Groq, OpenRouter, OpenAI, Ollama, …).
     SDK      : openai (pip install openai)
-    Key env  : LLM_GATEWAY_API_KEY   (Groq API key)
-    URL env  : LLM_GATEWAY_API_URL   (leave blank to use Groq default)
-    Model env: LLM_GATEWAY_MODEL     (default: llama-3.3-70b-versatile)
+    Key env  : LLM_GATEWAY_API_KEY   — required; your provider API key
+    URL env  : LLM_GATEWAY_API_URL   — provider base URL (default: https://api.groq.com/openai/v1/)
+    Model env: LLM_GATEWAY_MODEL     — model name (default: llama-3.3-70b-versatile via Groq)
+
+Set both LLM_GATEWAY_API_URL and LLM_GATEWAY_MODEL in .env to switch providers.
+The default fallback (Groq + llama-3.3-70b-versatile) is used only when neither var is set.
 
 Pattern: the configured LLM decides which MemClaw MCP tools to call.
   1. Discover tools from MCP server (tools/list)
   2. Convert MCP tool schemas → OpenAI function-calling format
-    3. Send system + user prompt to the configured model with tools attached
-    4. If the model returns tool_calls → execute each via MCP, feed results back
-    5. Repeat until the model stops issuing tool calls (finish_reason == "stop")
+  3. Send system + user prompt to the configured model with tools attached
+  4. If the model returns tool_calls → execute each via MCP, feed results back
+  5. Repeat until the model stops issuing tool calls (finish_reason == "stop")
   6. Return the final text response + a log of every tool call made
 """
 
