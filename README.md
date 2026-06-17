@@ -9,8 +9,8 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![License MIT](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
-[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/caura-ai/memclaw-build-fleet/releases)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/caura-ai/memclaw-build-fleet/pulls)
+[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/Infrasity-Labs/memclaw-build-fleet/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/Infrasity-Labs/memclaw-build-fleet/pulls)
 
 [Why Multi-Agent?](#why-multi-agent) · [MemClaw Features](#what-is-memclaw) · [Quickstart](#getting-started) · [New Fleet](#creating-a-new-fleet) · [Query Memories](#querying-fleet-memories) · [Add an Agent](#adding-a-new-agent)
 
@@ -172,7 +172,7 @@ Any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint w
 #### 1. Clone and install
 
 ```bash
-git clone https://github.com/caura-ai/memclaw-build-fleet.git
+git clone https://github.com/Infrasity-Labs/memclaw-build-fleet.git
 cd memclaw-build-fleet
 
 python -m venv .venv
@@ -208,7 +208,25 @@ MEMCLAW_TENANT_ID=your-tenant-id
 MEMCLAW_FLEET_ID=memclaw-build-fleet
 ```
 
-#### 3. Verify and run
+#### 3. Elevate agent trust (one-time, required)
+
+The Manager and Code Review agents need `trust_level=2` to call `memclaw_stats`, `memclaw_list`, and `memclaw_insights`. Run these two commands once per tenant — they persist and never need repeating:
+
+```bash
+curl -X PATCH "https://memclaw.net/api/agents/manager-tenant/trust?tenant_id=YOUR_TENANT_ID" \
+  -H "X-API-Key: $MEMCLAW_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"trust_level": 2}'
+
+curl -X PATCH "https://memclaw.net/api/agents/code-review-agent/trust?tenant_id=YOUR_TENANT_ID" \
+  -H "X-API-Key: $MEMCLAW_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"trust_level": 2}'
+```
+
+> If you skip this step the Manager and Code Review agents will receive 403 errors and the pipeline will report `Data Isolation: ⚠️ UNCONFIRMED`. See the [Troubleshooting](#troubleshooting) table for details.
+
+#### 4. Verify and run
 
 ```bash
 python pipeline/run_pipeline.py --dry-run
@@ -236,7 +254,7 @@ Other supported models: `mistral-nemo`, `qwen2.5`, `nous-hermes2`. Verify functi
 #### 3. Clone and install
 
 ```bash
-git clone https://github.com/caura-ai/memclaw-build-fleet.git
+git clone https://github.com/Infrasity-Labs/memclaw-build-fleet.git
 cd memclaw-build-fleet
 
 python -m venv .venv
@@ -267,7 +285,11 @@ MEMCLAW_FLEET_ID=memclaw-build-fleet
 
 Ollama's OpenAI-compatible server accepts any non-empty string as the API key. `ollama` is the conventional placeholder.
 
-#### 5. Start Ollama and run
+#### 5. Elevate agent trust (one-time, required)
+
+Same as Option A — run the two `curl -X PATCH` commands from [Step 3 above](#3-elevate-agent-trust-one-time-required) before running the pipeline.
+
+#### 6. Start Ollama and run
 
 ```bash
 # Confirm Ollama is running
@@ -343,7 +365,7 @@ python pipeline/run_pipeline.py --dry-run
 If any required env var is missing, the run exits immediately with a clear error before touching the network:
 
 ```
-ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, LLM_GATEWAY_API_URL, LLM_GATEWAY_MODEL, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID
+ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, LLM_GATEWAY_API_URL, LLM_GATEWAY_MODEL, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID, MEMCLAW_FLEET_ID
 Copy .env.example → .env and fill in your keys.
 ```
 
@@ -393,7 +415,7 @@ Copy .env.example → .env and fill in your keys.
   ───────────────────────────────────────────────────────────────
   Code Review Verdict  :  <✅ LGTM or 🚫 BLOCK — depends on model>
   Pipeline Health      :  <✅ HEALTHY, ⚠️ WARNINGS, or 🚫 CRITICAL — depends on model>
-  Data Isolation       :  ✅  VERIFIED  (zero writes, reads ok)
+  Data Isolation       :  <✅ VERIFIED or ⚠️ UNCONFIRMED — depends on Manager agent trust level>
   ───────────────────────────────────────────────────────────────
 
   ▸ View memories : https://memclaw.net/prism
@@ -628,7 +650,7 @@ Contributions welcome. Useful directions:
 ### Development setup
 
 ```bash
-git clone https://github.com/caura-ai/memclaw-build-fleet.git
+git clone https://github.com/Infrasity-Labs/memclaw-build-fleet.git
 cd memclaw-build-fleet
 python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
 pip install -r pipeline/requirements.txt

@@ -77,7 +77,7 @@ PIPELINE_STEPS = [
 
 def check_env() -> list[str]:
     return [k for k in ("LLM_GATEWAY_API_KEY", "LLM_GATEWAY_API_URL", "LLM_GATEWAY_MODEL",
-                        "MEMCLAW_API_KEY", "MEMCLAW_TENANT_ID")
+                        "MEMCLAW_API_KEY", "MEMCLAW_TENANT_ID", "MEMCLAW_FLEET_ID")
             if not os.environ.get(k)]
 
 
@@ -222,6 +222,19 @@ def print_summary(results: dict):
     if cr.get("status") == "ok":
         text = cr["data"].get("final_text", "")
         verdict = _parse_verdict(text, ["LGTM", "BLOCK"])
+        if verdict == "?":
+            # Model wrote the verdict into a memory rather than its final text — scan tool results
+            for tc in cr["data"].get("tool_calls", []):
+                if tc.get("tool") == "memclaw_write" and tc.get("status") == "ok":
+                    result_content = json.dumps(tc.get("result", ""))
+                    input_content = json.dumps(tc.get("input", ""))
+                    for src in (input_content, result_content):
+                        found = _parse_verdict(src, ["LGTM", "BLOCK"])
+                        if found != "?":
+                            verdict = found
+                            break
+                if verdict != "?":
+                    break
         icon = "✅" if verdict == "LGTM" else ("🚫" if verdict == "BLOCK" else "❓")
         print(f"  Code Review Verdict  :  {icon}  {verdict}")
 
