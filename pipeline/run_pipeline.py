@@ -286,6 +286,7 @@ def main():
     parser.add_argument("--dry-run",      action="store_true", help="Check env + MCP connectivity, then exit")
     parser.add_argument("--skip-manager", action="store_true", help="Skip Manager Tenant audit")
     parser.add_argument("--reset",        action="store_true", help="Delete all fleet memories after the run completes")
+    parser.add_argument("--loop",         action="store_true", help="Re-run pipeline after each run; resets memories between iterations, pauses for keypress")
     parser.add_argument("--json-output",  metavar="FILE",      help="Write full results to JSON file")
     parser.add_argument("--log-level",    default="INFO",       help="Logging level (DEBUG/INFO/WARNING/ERROR)")
     args = parser.parse_args()
@@ -320,16 +321,33 @@ def main():
         sys.exit(0)
 
     print_pipeline_table(steps)
-    results = run_pipeline(steps)
-    print_summary(results)
 
-    if args.reset:
-        reset_fleet_memories()
+    run_number = 0
+    while True:
+        run_number += 1
+        if args.loop and run_number > 1:
+            print(f"\n  ── Loop iteration {run_number} ──\n")
 
-    if args.json_output:
-        safe = json.loads(json.dumps(results, default=str))
-        Path(args.json_output).write_text(json.dumps(safe, indent=2), encoding="utf-8")
-        log.info("Full results written to %s", args.json_output)
+        results = run_pipeline(steps)
+        print_summary(results)
+
+        if args.reset or args.loop:
+            reset_fleet_memories()
+
+        if args.json_output:
+            safe = json.loads(json.dumps(results, default=str))
+            Path(args.json_output).write_text(json.dumps(safe, indent=2), encoding="utf-8")
+            log.info("Full results written to %s", args.json_output)
+
+        if not args.loop:
+            break
+
+        print("\n  Press Enter to run again, or Ctrl+C to exit…")
+        try:
+            input()
+        except KeyboardInterrupt:
+            print("\n  Stopped.")
+            break
 
 
 if __name__ == "__main__":

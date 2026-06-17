@@ -288,6 +288,12 @@ python pipeline/run_pipeline.py
 # Skip the Manager audit (faster iteration during development)
 python pipeline/run_pipeline.py --skip-manager
 
+# Loop mode — resets memories between runs, pauses for Enter between iterations
+python pipeline/run_pipeline.py --loop
+
+# Reset all fleet memories after the run completes
+python pipeline/run_pipeline.py --reset
+
 # Save full results to JSON
 python pipeline/run_pipeline.py --json-output results.json
 
@@ -316,32 +322,6 @@ python pipeline/run_pipeline.py --dry-run
 
 ![dry-run output](docs/images/output-dry-run.jfif)
 
-```
-=================================================================
-  MemClaw 5-Fleet SaaS Build Pipeline  (MCP tool-use)
-  Recall Before Acting · Write After Deciding
-  Started : 2026-06-06 10:58:10
-=================================================================
-  MCP URL : https://memclaw.net/mcp
-  Transport: mcp
-  Fleet   : memclaw-build-fleet
-  Tenant  : **********fa9c
-  Model   : your-model-name
-=================================================================
-
-10:58:10 INFO  __main__ — Checking MemClaw API connectivity...
-10:58:11 INFO  __main__ — MemClaw API reachable — 12 tools defined: ['memclaw_write', 'memclaw_recall', ...]
-10:58:11 INFO  __main__ — Dry run complete — env OK, MemClaw OK.
-
-Execution plan:
-  #   Agent                  MCP Tool Usage
-  --- ---------------------- --------------------------------------
-  1   Frontend Agent         recall:—  write:HTML5/CSS decisions
-  2   Performance Agent      recall:frontend → write:CWV rules
-  3   SEO Agent              recall:all → write:SEO decisions
-  4   Code Review Agent      recall:all + insights → write:verdict
-  5   Manager Tenant         list+stats+insights  (read-only audit)
-```
 
 If any required env var is missing, the run exits immediately with a clear error before touching the network:
 
@@ -353,48 +333,54 @@ Copy .env.example → .env and fill in your keys.
 ### Full pipeline run
 
 ```
-=================================================================
-  MemClaw 5-Fleet SaaS Build Pipeline  (MCP tool-use)
-  Recall Before Acting · Write After Deciding
-  Started : 2026-06-06 10:58:10
-=================================================================
-  MCP URL : https://memclaw.net/mcp
-  Transport: mcp
-  Fleet   : memclaw-build-fleet
-  Tenant  : **********fa9c
-  Model   : your-model-name
-=================================================================
+┌───────────────────────────────────────────────────────────────┐
+│              MemClaw Fleet  ·  5-Agent MCP Pipeline           │
+│          Recall Before Acting  ·  Write After Deciding        │
+├───────────────────────────────────────────────────────────────┤
+│  Started  : 2026-06-06 10:58:10                               │
+│  Fleet    : memclaw-build-fleet                               │
+│  Tenant   : **********fa9c                                    │
+│  Model    : your-model-name                                   │
+│  MCP      : https://memclaw.net/mcp                           │
+└───────────────────────────────────────────────────────────────┘
 
-Execution plan:
-  #   Agent                  MCP Tool Usage
-  --- ---------------------- --------------------------------------
-  1   Frontend Agent         recall:—  write:HTML5/CSS decisions
-  2   Performance Agent      recall:frontend → write:CWV rules
-  3   SEO Agent              recall:all → write:SEO decisions
-  4   Code Review Agent      recall:all + insights → write:verdict
-  5   Manager Tenant         list+stats+insights  (read-only audit)
+  Execution plan
+  ┌─────┬────────────────────────┬──────────────────────────────────────┐
+  │  #  │ Agent                  │ MCP Tool Usage                       │
+  ├─────┼────────────────────────┼──────────────────────────────────────┤
+  │  1  │ Frontend Agent         │ recall:—  write:HTML5/CSS decisions  │
+  │  2  │ Performance Agent      │ recall:frontend → write:CWV rules    │
+  │  3  │ SEO Agent              │ recall:all → write:SEO decisions      │
+  │  4  │ Code Review Agent      │ recall:all + insights → write:verdict │
+  │  5  │ Manager Tenant         │ list+stats+insights  (read-only audit)│
+  └─────┴────────────────────────┴──────────────────────────────────────┘
 
 ...
 
-─────────────────────────────────────────────────────────────────
-  ✦  RESULTS
-─────────────────────────────────────────────────────────────────
+══════════════════════════════════════════════════════════════════
+  ✦  RUN COMPLETE
+══════════════════════════════════════════════════════════════════
 
-  Agent Timing & Tool Usage
-  ········································
-  ✓ Frontend Agent          18.4s  [memclaw_write×3]
-  ✓ Performance Agent       21.3s  [memclaw_recall×1  memclaw_write×3]
-  ✓ SEO Agent               33.1s  [memclaw_recall×1  memclaw_write×2]
-  ✓ Code Review Agent       34.0s  [memclaw_recall×3  memclaw_insights×1  memclaw_write×1]
-  ✓ Manager Tenant          40.7s  [memclaw_stats×1  memclaw_list×1  memclaw_insights×2]
+  Agent Results
+  ┌────────────────────────┬────────┬──────────────────────────────────┐
+  │ Agent                  │  Time  │ Tool Calls                       │
+  ├────────────────────────┼────────┼──────────────────────────────────┤
+  │ ✓ Frontend Agent       │  18.4s │ write×3                          │
+  │ ✓ Performance Agent    │  21.3s │ recall×1  write×3                │
+  │ ✓ SEO Agent            │  33.1s │ recall×1  write×2                │
+  │ ✓ Code Review Agent    │  34.0s │ recall×3  insights×1  write×1    │
+  │ ✓ Manager Tenant       │  40.7s │ stats×1  list×1  insights×2      │
+  └────────────────────────┴────────┴──────────────────────────────────┘
 
-  ········································
-  Code Review Verdict : <✅ LGTM or 🚫 BLOCK — depends on model>
-  Pipeline Health     : <✅ HEALTHY, ⚠️ WARNINGS, or 🚫 CRITICAL — depends on model>
-  Data Isolation      : ✅ VERIFIED  (zero writes, reads succeeded)
+  Verdicts
+  ───────────────────────────────────────────────────────────────
+  Code Review Verdict  :  <✅ LGTM or 🚫 BLOCK — depends on model>
+  Pipeline Health      :  <✅ HEALTHY, ⚠️ WARNINGS, or 🚫 CRITICAL — depends on model>
+  Data Isolation       :  ✅  VERIFIED  (zero writes, reads ok)
+  ───────────────────────────────────────────────────────────────
 
-  View memories at: https://memclaw.net/prism
-─────────────────────────────────────────────────────────────────
+  ▸ View memories : https://memclaw.net/prism
+══════════════════════════════════════════════════════════════════
 ```
 
 > **Note on verdict reproducibility:** `Code Review Verdict` and `Pipeline Health` are emitted by the LLM and are model-dependent. Different models (or the same model on different runs) may produce `LGTM` or `BLOCK` depending on how they interpret the recalled memories and any detected contradictions. A `BLOCK` verdict is not a pipeline failure — it means the model found a real or apparent inconsistency (e.g. SEO inline JSON-LD read as conflicting with the Performance "no external JS" rule). Review the agent's `final_text` for its cited reasoning.
