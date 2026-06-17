@@ -4,11 +4,10 @@ Base agentic loop shared by all fleet agents.
 LLM backend: any OpenAI-compatible provider (Groq, OpenRouter, OpenAI, Ollama, …).
     SDK      : openai (pip install openai)
     Key env  : LLM_GATEWAY_API_KEY   — required; your provider API key
-    URL env  : LLM_GATEWAY_API_URL   — provider base URL (default: https://api.groq.com/openai/v1/)
-    Model env: LLM_GATEWAY_MODEL     — model name (default: llama-3.3-70b-versatile via Groq)
+    URL env  : LLM_GATEWAY_API_URL   — required; provider base URL
+    Model env: LLM_GATEWAY_MODEL     — required; model name
 
-Set both LLM_GATEWAY_API_URL and LLM_GATEWAY_MODEL in .env to switch providers.
-The default fallback (Groq + llama-3.3-70b-versatile) is used only when neither var is set.
+All three must be set in .env — the pipeline exits with a clear error if any are missing.
 
 Pattern: the configured LLM decides which MemClaw MCP tools to call.
   1. Discover tools from MCP server (tools/list)
@@ -29,15 +28,16 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_BASE_URL = "https://api.groq.com/openai/v1/"
-_DEFAULT_MODEL    = "llama-3.3-70b-versatile"
 _DEFAULT_MAX_TOKENS = 4096
 
 _client = None  # lazy singleton
 
 
 def _model() -> str:
-    return os.environ.get("LLM_GATEWAY_MODEL") or _DEFAULT_MODEL
+    model = os.environ.get("LLM_GATEWAY_MODEL", "").strip()
+    if not model:
+        raise EnvironmentError("LLM_GATEWAY_MODEL is not set — add it to .env")
+    return model
 
 
 def _max_tokens() -> int:
@@ -50,10 +50,13 @@ def _max_tokens() -> int:
 def _llm() -> OpenAI:
     global _client
     if _client is None:
-        _client = OpenAI(
-            api_key=os.environ["LLM_GATEWAY_API_KEY"],
-            base_url=os.environ.get("LLM_GATEWAY_API_URL") or _DEFAULT_BASE_URL,
-        )
+        api_key = os.environ.get("LLM_GATEWAY_API_KEY", "").strip()
+        base_url = os.environ.get("LLM_GATEWAY_API_URL", "").strip()
+        if not api_key:
+            raise EnvironmentError("LLM_GATEWAY_API_KEY is not set — add it to .env")
+        if not base_url:
+            raise EnvironmentError("LLM_GATEWAY_API_URL is not set — add it to .env")
+        _client = OpenAI(api_key=api_key, base_url=base_url)
     return _client
 
 

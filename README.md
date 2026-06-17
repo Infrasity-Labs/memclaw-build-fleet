@@ -346,7 +346,7 @@ Execution plan:
 If any required env var is missing, the run exits immediately with a clear error before touching the network:
 
 ```
-ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID
+ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, LLM_GATEWAY_API_URL, LLM_GATEWAY_MODEL, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID
 Copy .env.example → .env and fill in your keys.
 ```
 
@@ -376,21 +376,25 @@ Execution plan:
 
 ...
 
-=================================================================
-  PIPELINE SUMMARY
-=================================================================
+─────────────────────────────────────────────────────────────────
+  ✦  RESULTS
+─────────────────────────────────────────────────────────────────
+
+  Agent Timing & Tool Usage
+  ········································
   ✓ Frontend Agent          18.4s  [memclaw_write×3]
-  ✓ Performance Agent       21.3s  [memclaw_recall×1  memclaw_write×1]
+  ✓ Performance Agent       21.3s  [memclaw_recall×1  memclaw_write×3]
   ✓ SEO Agent               33.1s  [memclaw_recall×1  memclaw_write×2]
   ✓ Code Review Agent       34.0s  [memclaw_recall×3  memclaw_insights×1  memclaw_write×1]
-  ✓ Manager Tenant          12.8s  [memclaw_stats×1  memclaw_list×1  memclaw_insights×2]
+  ✓ Manager Tenant          40.7s  [memclaw_stats×1  memclaw_list×1  memclaw_insights×2]
 
-  Code Review Verdict : <LGTM or BLOCK — depends on model and whether contradictions are detected>
-  Pipeline Health     : <HEALTHY, WARNINGS, or CRITICAL — depends on model>
-  Data Isolation      : ✅ VERIFIED
+  ········································
+  Code Review Verdict : <✅ LGTM or 🚫 BLOCK — depends on model>
+  Pipeline Health     : <✅ HEALTHY, ⚠️ WARNINGS, or 🚫 CRITICAL — depends on model>
+  Data Isolation      : ✅ VERIFIED  (zero writes, reads succeeded)
 
   View memories at: https://memclaw.net/prism
-=================================================================
+─────────────────────────────────────────────────────────────────
 ```
 
 > **Note on verdict reproducibility:** `Code Review Verdict` and `Pipeline Health` are emitted by the LLM and are model-dependent. Different models (or the same model on different runs) may produce `LGTM` or `BLOCK` depending on how they interpret the recalled memories and any detected contradictions. A `BLOCK` verdict is not a pipeline failure — it means the model found a real or apparent inconsistency (e.g. SEO inline JSON-LD read as conflicting with the Performance "no external JS" rule). Review the agent's `final_text` for its cited reasoning.
@@ -539,8 +543,73 @@ Invoke-RestMethod -Method POST -Uri "https://memclaw.net/api/v1/recall" -Headers
 | LLM gateway 429 rate limit                      | Provider quota exceeded                                     | Pipeline retries automatically (4 attempts, 20–80s backoff). Set `LLM_GATEWAY_MAX_TOKENS=2048` to reduce per-request size |
 | Inline comment breaks `.env` value              | Shell comments inside env values                            | `LLM_GATEWAY_MODEL=my-model`: no trailing `# comments` on the same line                                                  |
 | Recall returns memories from a different run    | `MEMCLAW_FLEET_ID` typo (e.g. `piepline` vs `pipeline`)    | Recall queries by tenant first; a typo'd `fleet_id` still returns results but mixes namespaces. Standardise on one value in `.env` and keep it consistent across all runs |
-| Manager reads return 403 / `Data Isolation: ⚠️ UNCONFIRMED` | Manager agent was never registered (trust < 2) | The orchestrator writes one bootstrap memory as the Manager agent before the pipeline starts. If you run `manager.py` standalone, call `run_pipeline.py` first, or add a `memclaw_write` call in your own bootstrap step to register the agent. |
-| `memclaw_insights` returns 403 for Code Review  | Agent called `insights` before writing any memory (unregistered) | The Code Review agent now writes a draft note before calling `memclaw_insights`. If you see this in isolation, ensure the agent has written at least one memory before calling insights. |
+| Manager reads return 403 / `Data Isolation: ⚠️ UNCONFIRMED` | Agent `trust_level` is 1 — `memclaw_stats`, `memclaw_list`, and `memclaw_insights` require trust ≥ 2 | Elevate trust via the admin API: `curl -X PATCH "https://memclaw.net/api/agents/manager-tenant/trust?tenant_id=<your-tenant-id>" -H "X-API-Key: $MEMCLAW_API_KEY" -d '{"trust_level": 2}'`. Do the same for `code-review-agent`. Only needs to be done once per tenant. |
+| `memclaw_insights` returns 403 for Code Review  | Agent `trust_level` is 1 | Same fix as above — elevate `code-review-agent` trust to 2 via the admin API. |
+
+---
+
+## Using MemClaw with Other Agent Frameworks
+
+This repo is a plain-Python reference implementation no framework dependency required. But the MemClaw MCP server works with any framework that can call an OpenAI-compatible tool or an MCP endpoint. Below are the integration patterns for the most common frameworks.
+
+### CrewAI
+
+Wrap each `memclaw_*` tool as a CrewAI `@tool` and pass it to your `Agent` definition. The `recall_before_acting` and `write_after_deciding` prompts in each agent's `SYSTEM` string map directly onto CrewAI task descriptions.
+
+```python
+from crewai_tools import tool
+import mcp_client as mcp
+
+@tool("recall fleet memories")
+def recall(query: str) -> str:
+    """Retrieve relevant memories from the shared fleet before acting."""
+    return str(mcp.call_tool("memclaw_recall", {"query": query}, agent_id="my-crew-agent"))
+
+@tool("write fleet memory")
+def write(content: str, importance: float = 0.85) -> str:
+    """Persist a decision to shared fleet memory after acting."""
+    return str(mcp.call_tool("memclaw_write", {"content": content, "importance": importance}, agent_id="my-crew-agent"))
+```
+
+Assign `tools=[recall, write]` on the CrewAI `Agent` that needs fleet memory. The Manager audit agent gets `tools=[recall]` only matching the read-only isolation this repo enforces.
+
+### LangGraph / LangChain
+
+Register MemClaw tools as `StructuredTool` objects and bind them to your graph nodes. Each node in the LangGraph state machine corresponds to one agent in this pipeline.
+
+```python
+from langchain_core.tools import StructuredTool
+import mcp_client as mcp
+
+recall_tool = StructuredTool.from_function(
+    func=lambda query: mcp.call_tool("memclaw_recall", {"query": query}, agent_id="langgraph-agent"),
+    name="memclaw_recall",
+    description="Recall relevant fleet memories before acting.",
+)
+```
+
+Bind the tool to your `ChatOpenAI` model with `llm.bind_tools([recall_tool, write_tool])` and the rest of the agentic loop (tool-call → execute → feed back) works identically to `agent_base.py`.
+
+### AutoGen / AG2
+
+Add MemClaw tools to an `AssistantAgent`'s function map. AutoGen's `register_for_llm` + `register_for_execution` pattern maps cleanly onto the write-after-deciding pattern:
+
+```python
+import autogen, mcp_client as mcp
+
+assistant = autogen.AssistantAgent("seo_agent", llm_config={...})
+
+@assistant.register_for_llm(description="Recall fleet memories.")
+@assistant.register_for_execution()
+def memclaw_recall(query: str) -> str:
+    return str(mcp.call_tool("memclaw_recall", {"query": query}, agent_id="seo-agent"))
+```
+
+### Harness AI / Custom Orchestrators
+
+Any orchestrator that can make HTTP POST requests can call MemClaw directly without this Python client. The REST API (`MEMCLAW_TRANSPORT=rest`) accepts the same arguments set `MEMCLAW_TRANSPORT=rest` in `.env` to use the REST fallback path in `mcp_client.py`, or POST to `https://memclaw.net/api/v1/recall` and `/memories` directly with `X-API-Key` authentication.
+
+The MCP server (`https://memclaw.net/mcp`) also works with any MCP-compatible runtime register it as an MCP tool server and each tool schema is discovered automatically at session start.
 
 ---
 
