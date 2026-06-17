@@ -255,7 +255,13 @@ def _mcp_call_tool(tool_name: str, args: dict) -> Any:
         "arguments": args,
     })
     if result.get("isError"):
-        raise RequestException(f"MCP tool {tool_name} returned error: {_extract_tool_result(result)}")
+        extracted = _extract_tool_result(result)
+        # CONFLICT means a near-duplicate already exists — treat as a successful no-op
+        # so the model doesn't loop retrying the same write.
+        if isinstance(extracted, dict) and extracted.get("error", {}).get("code") == "CONFLICT":
+            existing_id = extracted["error"].get("message", "").split(":")[-1].strip()
+            return {"status": "duplicate", "existing_id": existing_id, "agent_id": args.get("agent_id")}
+        raise RequestException(f"MCP tool {tool_name} returned error: {extracted}")
     return _extract_tool_result(result)
 
 
