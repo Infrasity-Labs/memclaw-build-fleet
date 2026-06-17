@@ -118,7 +118,7 @@ MemClaw provides three levels of isolation that can be combined. This pipeline u
 | Layer                    | Granularity | How it works                                                                                                                                                    | Example value                           | This repo               |
 | ------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------- |
 | **Tenant**               | Coarsest    | Hard structural boundary enforced at the storage layer via row-level security + API key binding. Tenants cannot see each other's data under any circumstances.  | `MEMCLAW_TENANT_ID=acme-corp`           | One tenant per team     |
-| **`fleet_id` namespace** | Mid-level   | Every memory is tagged with a `fleet_id`. Reads and writes are scoped to that tag — multiple fleets coexist inside one tenant without bleeding into each other. | `MEMCLAW_FLEET_ID=payments-audit-fleet` | **Default — used here** |
+| **`fleet_id` namespace** | Mid-level   | Every memory is tagged with a `fleet_id`. Reads and writes are scoped to that tag multiple fleets coexist inside one tenant without bleeding into each other. | `MEMCLAW_FLEET_ID=payments-audit-fleet` | **Default used here** |
 | **`scope_agent`**        | Finest      | Per-row server-side ACL flag. When set, only the agent that wrote the memory can recall it. Other agents in the same fleet are blocked.                         | `scope_agent=true` in `memclaw_write`   | Not set in this repo    |
 
 **Recommended defaults:**
@@ -317,6 +317,23 @@ python pipeline/manager.py
 Use `--dry-run` to verify your environment and MemClaw connectivity before running the full pipeline. It checks that all required env vars are set, opens an MCP session, calls `tools/list`, and exits — no LLM calls, no memories written.
 
 ```
+  MemClaw 5-Fleet SaaS Build Pipeline  (MCP tool-use)
+  Recall Before Acting · Write After Deciding
+  Started : 2026-06-06 10:58:10
+  MCP URL : https://memclaw.net/mcp
+  Transport: mcp
+  Fleet   : memclaw-build-fleet
+  Tenant  : **********fa9c
+  Model   : your-model-name
+
+Execution plan:
+  #   Agent                  MCP Tool Usage
+  --- ---------------------- --------------------------------------
+  1   Frontend Agent         recall—  write:HTML5/CSS decisions
+  2   Performance Agent      recall:frontend → write:CWV rules
+  3   SEO Agent              recall:all → write:SEO decisions
+  4   Code Review Agent      recall:all + insights → write:verdict
+  5   Manager Tenant         list+stats+insights  (read-only audit)
 python pipeline/run_pipeline.py --dry-run
 ```
 
@@ -433,7 +450,7 @@ In `pipeline/config.py`, add a constant for your agent ID. In `pipeline/run_pipe
 
 ```python
 PIPELINE_STEPS = [
-    ("Frontend Agent",   agent_frontend,  "recall:—  write:HTML5/CSS decisions"),
+    ("Frontend Agent",   agent_frontend,  "recall:  write:HTML5/CSS decisions"),
     ("My New Agent",     agent_myagent,   "recall:all → write:my decisions"),   # ← add here
     ...
 ]
