@@ -525,36 +525,6 @@ npx @modelcontextprotocol/inspector
 
 Opens at `http://localhost:5173`. Set transport to HTTP, URL to `https://memclaw.net/mcp`, add header `X-API-Key: mc_your_key_here`. Call any tool interactively.
 
-### Direct REST
-
-```bash
-curl -s -X POST https://memclaw.net/api/v1/recall \
-  -H "X-API-Key: mc_your_key_here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant_id": "your-tenant-id",
-    "fleet_ids": ["memclaw-build-fleet"],
-    "query": "SEO schema decisions",
-    "top_k": 5
-  }' | python -m json.tool
-```
-
-> **No `jq`?** `python -m json.tool` is a built-in alternative that works on any OS without extra installs.
-
-PowerShell:
-
-```powershell
-$headers = @{ "X-API-Key" = "mc_your_key_here"; "Content-Type" = "application/json" }
-$body = @{
-    tenant_id = "your-tenant-id"
-    fleet_ids = @("memclaw-build-fleet")
-    query     = "SEO schema decisions"
-    top_k     = 5
-} | ConvertTo-Json
-
-Invoke-RestMethod -Method POST -Uri "https://memclaw.net/api/v1/recall" -Headers $headers -Body $body
-```
-
 ---
 
 ## Troubleshooting
