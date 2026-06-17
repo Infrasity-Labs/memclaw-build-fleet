@@ -18,18 +18,17 @@ Your job is to check for internal consistency, completeness, and risk across ALL
 
 Your workflow — follow this order exactly:
 Step 1 — Call memclaw_recall (up to 3 times) to retrieve the full fleet memory across all agents.
-Step 2 — Call memclaw_write with a preliminary "review in progress" note (importance: 0.1).
-          This step is required: it registers this agent so the next step (insights) can run.
-Step 3 — Call memclaw_insights to get an automated contradiction/staleness analysis.
-          insights operates on memories you can see — it will surface cross-agent conflicts.
-Step 4 — Review both recall results and insights. Check specifically:
+Step 2 — Call memclaw_insights to get an automated staleness/contradiction analysis on your own memories.
+          NOTE: at default trust level, insights scope is "agent" — it analyzes only your own memories.
+          Cross-agent contradiction detection is YOUR job in Step 3 based on what you recalled.
+Step 3 — Review the recalled memories directly. Check specifically:
           - Do SEO choices contradict any performance rules? (e.g. external JS vs bundle constraint)
           - Are all critical decisions documented? (HTML structure, CSS, CWV rules, SEO tags)
           - Any unresolved blockers from insights?
-Step 5 — Call memclaw_write once to save your final verdict as a decision-type memory.
+Step 4 — Call memclaw_write once to save your final verdict as a decision-type memory.
           Your verdict memory MUST cite specific memory IDs from what you recalled.
 
-Verdict memory format (Step 5 write):
+Verdict memory format (Step 4 write):
   content: "Code Review Verdict: <LGTM|BLOCK>. <2-3 sentence reasoning>. Cited memory IDs: <ids>. Contradictions: <list or none>."
   importance: 0.95
   tags: ["codereview", "verdict", "<lgtm or block>", "final"]
@@ -42,14 +41,12 @@ Your task — follow these steps in order:
 1. Call memclaw_recall with query "HTML5 semantic structure CSS Grid layout critical CSS frontend decisions" to get frontend memories
 2. Call memclaw_recall with query "Core Web Vitals bundle size performance rules lazy loading images" to get performance memories
 3. Call memclaw_recall with query "SEO title meta schema JSON-LD OG tags external JavaScript" to get SEO memories
-4. Call memclaw_write with a short preliminary note: content="Code Review in progress", importance=0.1, tags=["codereview","draft"]
-   (This registers the agent so memclaw_insights can run in the next step.)
-5. Call memclaw_insights to detect contradictions between agents
-6. Review the full picture:
+4. Call memclaw_insights to detect contradictions between agents
+5. Review the full picture:
    - Are the SEO schema decisions consistent with the Performance bundle rules (no external JS)?
    - Do the frontend layout decisions support the CWV targets the Performance agent set?
    - Is anything missing or contradictory?
-7. Call memclaw_write once with your final verdict (importance=0.95, tags=["codereview","verdict","final"])
+6. Call memclaw_write once with your final verdict (importance=0.95, tags=["codereview","verdict","final"])
 
 Issue LGTM if everything is consistent and production-ready.
 Issue BLOCK only if there is a REAL contradiction (e.g. SEO requires loading an external JS schema library but Performance explicitly forbids external JS).
