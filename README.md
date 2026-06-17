@@ -9,8 +9,8 @@ Each agent recalls what the previous one decided before acting. Clone it, run it
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)](https://python.org)
 [![License MIT](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
-[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/caura-ai/memclaw-build-fleet/releases)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/caura-ai/memclaw-build-fleet/pulls)
+[![MemClaw](https://img.shields.io/badge/MemClaw-releases-orange?style=flat-square)](https://github.com/Infrasity-Labs/memclaw-build-fleet/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](https://github.com/Infrasity-Labs/memclaw-build-fleet/pulls)
 
 [What is MemClaw?](#what-is-memclaw) · [Why Multi-Agent?](#why-multi-agent) · [Quickstart](#getting-started) · [New Fleet](#creating-a-new-fleet) · [Query Memories](#querying-fleet-memories) · [Add an Agent](#adding-a-new-agent)
 
@@ -114,11 +114,19 @@ Each agent receives an explicit allowlist of MCP tools. Agents cannot call tools
 
 MemClaw provides three levels of isolation that can be combined. This pipeline uses fleet-level namespacing as the default.
 
+<<<<<<< HEAD
 | Layer | Granularity | How it works | Example value | This repo |
 | :--- | :--- | :--- | :--- | :--- |
 | **Tenant** | Coarsest | Hard structural boundary enforced at the storage layer via row-level security + API key binding. Tenants cannot see each other's data under any circumstances. | `MEMCLAW_TENANT_ID=acme-corp` | One tenant per team |
 | **`fleet_id` namespace** | Mid-level | Every memory is tagged with a `fleet_id`. Reads and writes are scoped to that tag — multiple fleets coexist inside one tenant without bleeding into each other. | `MEMCLAW_FLEET_ID=payments-audit-fleet` | **Default — used here** |
 | **`scope_agent`** | Finest | Per-row server-side ACL flag. When set, only the agent that wrote the memory can recall it. Other agents in the same fleet are blocked. | `scope_agent=true` in `memclaw_write` | Not set in this repo |
+=======
+| Layer                    | Granularity | How it works                                                                                                                                                    | Example value                           | This repo               |
+| ------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------- |
+| **Tenant**               | Coarsest    | Hard structural boundary enforced at the storage layer via row-level security + API key binding. Tenants cannot see each other's data under any circumstances.  | `MEMCLAW_TENANT_ID=acme-corp`           | One tenant per team     |
+| **`fleet_id` namespace** | Mid-level   | Every memory is tagged with a `fleet_id`. Reads and writes are scoped to that tag multiple fleets coexist inside one tenant without bleeding into each other. | `MEMCLAW_FLEET_ID=payments-audit-fleet` | **Default used here** |
+| **`scope_agent`**        | Finest      | Per-row server-side ACL flag. When set, only the agent that wrote the memory can recall it. Other agents in the same fleet are blocked.                         | `scope_agent=true` in `memclaw_write`   | Not set in this repo    |
+>>>>>>> main
 
 **Recommended defaults:**
 
@@ -171,7 +179,7 @@ Any provider that exposes an OpenAI-compatible `/v1/chat/completions` endpoint w
 #### 1. Clone and install
 
 ```bash
-git clone https://github.com/caura-ai/memclaw-build-fleet.git
+git clone https://github.com/Infrasity-Labs/memclaw-build-fleet.git
 cd memclaw-build-fleet
 
 python -m venv .venv
@@ -207,7 +215,25 @@ MEMCLAW_TENANT_ID=your-tenant-id
 MEMCLAW_FLEET_ID=memclaw-build-fleet
 ```
 
-#### 3. Verify and run
+#### 3. Elevate agent trust (one-time, required)
+
+The Manager and Code Review agents need `trust_level=2` to call `memclaw_stats`, `memclaw_list`, and `memclaw_insights`. Run these two commands once per tenant — they persist and never need repeating:
+
+```bash
+curl -X PATCH "https://memclaw.net/api/agents/manager-tenant/trust?tenant_id=YOUR_TENANT_ID" \
+  -H "X-API-Key: $MEMCLAW_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"trust_level": 2}'
+
+curl -X PATCH "https://memclaw.net/api/agents/code-review-agent/trust?tenant_id=YOUR_TENANT_ID" \
+  -H "X-API-Key: $MEMCLAW_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"trust_level": 2}'
+```
+
+> If you skip this step the Manager and Code Review agents will receive 403 errors and the pipeline will report `Data Isolation: ⚠️ UNCONFIRMED`. See the [Troubleshooting](#troubleshooting) table for details.
+
+#### 4. Verify and run
 
 ```bash
 python pipeline/run_pipeline.py --dry-run
@@ -235,7 +261,7 @@ Other supported models: `mistral-nemo`, `qwen2.5`, `nous-hermes2`. Verify functi
 #### 3. Clone and install
 
 ```bash
-git clone https://github.com/caura-ai/memclaw-build-fleet.git
+git clone https://github.com/Infrasity-Labs/memclaw-build-fleet.git
 cd memclaw-build-fleet
 
 python -m venv .venv
@@ -266,7 +292,11 @@ MEMCLAW_FLEET_ID=memclaw-build-fleet
 
 Ollama's OpenAI-compatible server accepts any non-empty string as the API key. `ollama` is the conventional placeholder.
 
-#### 5. Start Ollama and run
+#### 5. Elevate agent trust (one-time, required)
+
+Same as Option A — run the two `curl -X PATCH` commands from [Step 3 above](#3-elevate-agent-trust-one-time-required) before running the pipeline.
+
+#### 6. Start Ollama and run
 
 ```bash
 # Confirm Ollama is running
@@ -315,7 +345,28 @@ python pipeline/manager.py
 
 Use `--dry-run` to verify your environment and MemClaw connectivity before running the full pipeline. It checks that all required env vars are set, opens an MCP session, calls `tools/list`, and exits — no LLM calls, no memories written.
 
+<<<<<<< HEAD
 ```bash
+=======
+```
+  MemClaw 5-Fleet SaaS Build Pipeline  (MCP tool-use)
+  Recall Before Acting · Write After Deciding
+  Started : 2026-06-06 10:58:10
+  MCP URL : https://memclaw.net/mcp
+  Transport: mcp
+  Fleet   : memclaw-build-fleet
+  Tenant  : **********fa9c
+  Model   : your-model-name
+
+Execution plan:
+  #   Agent                  MCP Tool Usage
+  --- ---------------------- --------------------------------------
+  1   Frontend Agent         recall—  write:HTML5/CSS decisions
+  2   Performance Agent      recall:frontend → write:CWV rules
+  3   SEO Agent              recall:all → write:SEO decisions
+  4   Code Review Agent      recall:all + insights → write:verdict
+  5   Manager Tenant         list+stats+insights  (read-only audit)
+>>>>>>> main
 python pipeline/run_pipeline.py --dry-run
 ```
 
@@ -324,7 +375,7 @@ python pipeline/run_pipeline.py --dry-run
 If any required env var is missing, the run exits immediately with a clear error before touching the network:
 
 ```
-ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, LLM_GATEWAY_API_URL, LLM_GATEWAY_MODEL, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID
+ERROR __main__ — Missing required env vars: LLM_GATEWAY_API_KEY, LLM_GATEWAY_API_URL, LLM_GATEWAY_MODEL, MEMCLAW_API_KEY, MEMCLAW_TENANT_ID, MEMCLAW_FLEET_ID
 Copy .env.example → .env and fill in your keys.
 ```
 
@@ -374,7 +425,7 @@ Copy .env.example → .env and fill in your keys.
   ───────────────────────────────────────────────────────────────
   Code Review Verdict  :  <✅ LGTM or 🚫 BLOCK — depends on model>
   Pipeline Health      :  <✅ HEALTHY, ⚠️ WARNINGS, or 🚫 CRITICAL — depends on model>
-  Data Isolation       :  ✅  VERIFIED  (zero writes, reads ok)
+  Data Isolation       :  <✅ VERIFIED or ⚠️ UNCONFIRMED — depends on Manager agent trust level>
   ───────────────────────────────────────────────────────────────
 
   ▸ View memories : https://memclaw.net/prism
@@ -431,7 +482,7 @@ In `pipeline/config.py`, add a constant for your agent ID. In `pipeline/run_pipe
 
 ```python
 PIPELINE_STEPS = [
-    ("Frontend Agent",   agent_frontend,  "recall:—  write:HTML5/CSS decisions"),
+    ("Frontend Agent",   agent_frontend,  "recall:  write:HTML5/CSS decisions"),
     ("My New Agent",     agent_myagent,   "recall:all → write:my decisions"),   # ← add here
     ...
 ]
@@ -483,36 +534,6 @@ npx @modelcontextprotocol/inspector
 ```
 
 Opens at `http://localhost:5173`. Set transport to HTTP, URL to `https://memclaw.net/mcp`, add header `X-API-Key: mc_your_key_here`. Call any tool interactively.
-
-### Direct REST
-
-```bash
-curl -s -X POST https://memclaw.net/api/v1/recall \
-  -H "X-API-Key: mc_your_key_here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant_id": "your-tenant-id",
-    "fleet_ids": ["memclaw-build-fleet"],
-    "query": "SEO schema decisions",
-    "top_k": 5
-  }' | python -m json.tool
-```
-
-> **No `jq`?** `python -m json.tool` is a built-in alternative that works on any OS without extra installs.
-
-PowerShell:
-
-```powershell
-$headers = @{ "X-API-Key" = "mc_your_key_here"; "Content-Type" = "application/json" }
-$body = @{
-    tenant_id = "your-tenant-id"
-    fleet_ids = @("memclaw-build-fleet")
-    query     = "SEO schema decisions"
-    top_k     = 5
-} | ConvertTo-Json
-
-Invoke-RestMethod -Method POST -Uri "https://memclaw.net/api/v1/recall" -Headers $headers -Body $body
-```
 
 ---
 
@@ -609,7 +630,7 @@ Contributions welcome. Useful directions:
 ### Development setup
 
 ```bash
-git clone https://github.com/caura-ai/memclaw-build-fleet.git
+git clone https://github.com/Infrasity-Labs/memclaw-build-fleet.git
 cd memclaw-build-fleet
 python -m venv .venv && source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
 pip install -r pipeline/requirements.txt
