@@ -247,10 +247,26 @@ def print_summary(results: dict):
 
         mgr_calls = mgr["data"].get("tool_calls", [])
         write_calls = [c for c in mgr_calls if "write" in c["tool"] or "manage" in c["tool"]]
-        read_ok = any(
-            c["status"] == "ok" and c["tool"] in {"memclaw_list", "memclaw_stats", "memclaw_insights", "memclaw_recall", "memclaw_entity_get"}
-            for c in mgr_calls
-        )
+        def _is_successful_read(c: dict) -> bool:
+            if c["tool"] not in {"memclaw_list", "memclaw_stats", "memclaw_recall", "memclaw_entity_get"}:
+                return False
+            if c.get("status") != "ok":
+                return False
+            return True
+
+        def _insights_ok(c: dict) -> bool:
+            """memclaw_insights returns HTTP 200 even on auth/trust errors — check the body."""
+            if c["tool"] != "memclaw_insights" or c.get("status") != "ok":
+                return False
+            result = c.get("result", {})
+            if isinstance(result, dict):
+                # Error bodies have "error" key or "detail" containing failure messages
+                err = result.get("error") or result.get("detail") or ""
+                if err and ("not registered" in str(err).lower() or "403" in str(err) or "trust" in str(err).lower()):
+                    return False
+            return True
+
+        read_ok = any(_is_successful_read(c) or _insights_ok(c) for c in mgr_calls)
         if not write_calls and read_ok:
             iso_icon, iso_text = "✅", "VERIFIED  (zero writes, reads ok)"
         elif not write_calls and not read_ok:
