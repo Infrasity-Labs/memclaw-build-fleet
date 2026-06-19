@@ -373,7 +373,14 @@ def call_tool(tool_name: str, arguments: dict, agent_id: str | None = None) -> A
             args["top_k"] = MAX_RECALL_TOP_K
 
     if _transport() == "mcp":
-        return _mcp_call_tool(tool_name, args)
+        # Strip tenant_id — the server derives it from the API key.
+        # Force fleet_id from env: the model may send fleet_id="" which blocks
+        # server-side injection; override it with the authoritative env value.
+        mcp_args = {k: v for k, v in args.items() if k != "tenant_id"}
+        fleet_id_env = _cfg("MEMCLAW_FLEET_ID", "")
+        if fleet_id_env:
+            mcp_args["fleet_id"] = fleet_id_env
+        return _mcp_call_tool(tool_name, mcp_args)
 
     dispatch = {
         "memclaw_write":      _write,
