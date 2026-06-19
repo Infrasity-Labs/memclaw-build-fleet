@@ -188,7 +188,9 @@ _HEALTH_SYNONYMS: dict[str, list[str]] = {
 
 def _parse_verdict(text: str, keywords: list[str], fallback: str = "?") -> str:
     """Case-insensitive scan for first matching keyword (and synonyms for health verdicts)."""
-    upper = text.upper()
+    if not text:
+        return fallback
+    upper = str(text).upper()
     for kw in keywords:
         if kw.upper() in upper:
             return kw
